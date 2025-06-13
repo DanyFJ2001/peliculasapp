@@ -1,4 +1,76 @@
 [
+   {
+    "name": "Pirates of the Caribbean: The Curse of the Black Pearl",
+    "description": "El capitán Jack Sparrow se une al herrero Will Turner para rescatar a Elizabeth Swann de los piratas malditos del Black Pearl.",
+    "image": "https://i.pinimg.com/736x/f2/e1/2e/f2e12e7dccd6001922c29bc1e02c5a6a.jpg",
+    "year": "2003",
+    "duration": "2h 23min",
+    "rating": "PG-13",
+    "videoId": "naQr0uTrH_s",
+    "genre": ["Aventura", "Fantasía", "Acción"]
+  },
+  
+  {
+    "name": "The Maze Runner",
+    "description": "Thomas se despierta en un ascensor sin recordar nada excepto su nombre, llegando a una comunidad de muchachos atrapados en un laberinto.",
+    "image": "https://i.pinimg.com/736x/10/e0/d2/10e0d2944f01e05e9fa1ed6dfaff339c.jpg",
+    "year": "2014",
+    "duration": "1h 53min",
+    "rating": "PG-13",
+    "videoId": "64-iSYVmMVY",
+    "genre": ["Ciencia Ficción", "Acción", "Suspenso"]
+  },
+  {
+    "name": "Maze Runner: The Scorch Trials",
+    "description": "Thomas y sus compañeros Gladers enfrentan su mayor desafío hasta ahora: buscar pistas sobre la misteriosa organización WCKD.",
+    "image": "https://i.pinimg.com/736x/72/2c/66/722c667ac8399e0b5a9d670018c8abde.jpg",
+    "year": "2015",
+    "duration": "2h 11min",
+    "rating": "PG-13",
+    "videoId": "-44_igsZtgU",
+    "genre": ["Ciencia Ficción", "Acción", "Suspenso"]
+  },
+  {
+    "name": "Maze Runner: The Death Cure",
+    "description": "Thomas lidera a sus compañeros Gladers en su misión final más peligrosa. Para salvar a sus amigos, deben irrumpir en la legendaria Last City.",
+    "image": "https://m.media-amazon.com/images/M/MV5BMTYyNzk3MDc2NF5BMl5BanBnXkFtZTgwMDk3OTM1NDM@._V1_FMjpg_UX1000_.jpg",
+    "year": "2018",
+    "duration": "2h 23min",
+    "rating": "PG-13",
+    "videoId": "S-fgLyNu5sQ",
+    "genre": ["Ciencia Ficción", "Acción", "Suspenso"]
+  },
+  {
+    "name": "The Super Mario Bros. Movie",
+    "description": "Mario y Luigi, dos hermanos fontaneros de Brooklyn, son transportados a través de una tubería mágica al colorido mundo de los Hongos.",
+    "image": "https://m.media-amazon.com/images/M/MV5BOTJhNzlmNzctNTU5Yy00N2YwLThhMjQtZDM0YjEzN2Y0ZjNhXkEyXkFqcGdeQXVyMTEwMTQ4MzU5._V1_FMjpg_UX1000_.jpg",
+    "year": "2023",
+    "duration": "1h 32min",
+    "rating": "PG",
+    "videoId": "TnGl01FkMMo",
+    "genre": ["Animación", "Aventura", "Comedia"]
+  },
+  
+  {
+    "name": "Ready Player One",
+    "description": "En el 2045, Wade Watts escapa de su sombría realidad hacia el universo virtual OASIS, donde embarca en una búsqueda del tesoro.",
+    "image": "https://m.media-amazon.com/images/M/MV5BY2JiYTNmZTctYTQ1OC00YjU4LWEwMjYtZjkwY2Y5MDI0OTU3XkEyXkFqcGdeQXVyNTI4MzE4MDU@._V1_FMjpg_UX1000_.jpg",
+    "year": "2018",
+    "duration": "2h 20min",
+    "rating": "PG-13",
+    "videoId": "cSp1dM2Vj48",
+    "genre": ["Ciencia Ficción", "Aventura", "Acción"]
+  },
+  {
+    "name": "Kingsman: The Secret Service",
+    "description": "Un joven problemático es reclutado por una organización de espías independiente y se embarca en una misión para salvar el mundo.",
+    "image": "https://m.media-amazon.com/images/M/MV5BYTM3ZTllNzItNTNmOS00NzJiLTg1MWMtMjMxNDc0NmJhODU5XkEyXkFqcGdeQXVyODE5NzE3OTE@._V1_FMjpg_UX1000_.jpg",
+    "year": "2014",
+    "duration": "2h 9min",
+    "rating": "R",
+    "videoId": "m4NCribDx4U",
+    "genre": ["Acción", "Aventura", "Comedia"]
+  },
   {
     "name": "Avengers: Endgame",
     "description": "Los Avengers se unen una vez más para deshacer las acciones de Thanos y restaurar el orden en el universo.",
@@ -69,7 +141,6 @@
     "videoId": "9vN6DHB6bJc",
     "genre": ["Acción", "Comedia", "Aventura"]
   },
-  
   {
     "name": "Inception",
     "description": "Un ladrón que roba secretos corporativos a través de la tecnología de compartir sueños recibe la tarea inversa de plantar una idea.",
@@ -80,7 +151,6 @@
     "videoId": "YoHD9XEInc0",
     "genre": ["Ciencia Ficción", "Acción", "Suspenso"]
   },
- 
   {
     "name": "Mad Max: Fury Road",
     "description": "En un mundo post-apocalíptico, Max se une a Furiosa para escapar de un señor de la guerra tiránico.",
@@ -90,6 +160,16 @@
     "rating": "R",
     "videoId": "hEJnMQG9ev8",
     "genre": ["Acción", "Aventura", "Ciencia Ficción"]
-  }
+  },
  
+  {
+    "name": "Spider-Man: Into the Spider-Verse",
+    "description": "Miles Morales se convierte en Spider-Man y debe unirse con otros Spider-People de dimensiones alternativas para salvar Nueva York.",
+    "image": "https://m.media-amazon.com/images/M/MV5BMjMwNDkxMTgzOF5BMl5BanBnXkFtZTgwNTkwNTQ3NjM@._V1_FMjpg_UX1000_.jpg",
+    "year": "2018",
+    "duration": "1h 57min",
+    "rating": "PG",
+    "videoId": "tg52up16eq0",
+    "genre": ["Animación", "Acción", "Aventura"]
+  }
 ]

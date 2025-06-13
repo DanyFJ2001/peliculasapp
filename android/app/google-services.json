@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1088569045752",
+    "firebase_url": "https://app-firebase-24d32-default-rtdb.firebaseio.com",
+    "project_id": "app-firebase-24d32",
+    "storage_bucket": "app-firebase-24d32.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1088569045752:android:55691b824ddc59de16410d",
+        "android_client_info": {
+          "package_name": "com.example.appcine"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAW9eeceWbOxkJc0AWsE_jq35s1n3WoSS8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
