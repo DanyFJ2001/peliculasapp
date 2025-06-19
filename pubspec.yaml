@@ -13,6 +13,12 @@ dependencies:
   flutter:
     sdk: flutter
   youtube_player_flutter: ^9.1.0
+  video_player: ^2.8.1
+  supabase_flutter: ^2.9.1
+  image_picker: ^1.1.2
+  icons_launcher: ^3.0.1
+  chewie: ^1.8.0
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -24,3 +30,4 @@ flutter:
   assets:
     - assets/data/
     - assets/imagenes/
+    - assets/videos/

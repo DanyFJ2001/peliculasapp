@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'package:appcine/screens/loginscreen.dart';
 import 'package:appcine/screens/pantallaPrincipalscreeen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart'; // ← Agregar este import
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RegistroScreen extends StatefulWidget {
   const RegistroScreen({super.key});
@@ -29,6 +32,11 @@ class _RegistroScreenState extends State<RegistroScreen>
   bool _isLoading = false;
   bool _obscurePassword = true;
   String _errorMessage = '';
+  
+  // Variables para la imagen
+  XFile? _imagen;
+  bool _isUploadingImage = false;
+  String? _imageUrl;
 
   @override
   void initState() {
@@ -88,6 +96,64 @@ class _RegistroScreenState extends State<RegistroScreen>
     super.dispose();
   }
 
+  // Función para actualizar la imagen
+  void actualizarImagen(XFile? nuevaImagen) {
+    setState(() {
+      _imagen = nuevaImagen;
+    });
+  }
+
+  // Función para abrir la cámara
+  Future<void> abrirCamara(Function actualizarImagen) async {
+    final imagenSeleccionada = await ImagePicker().pickImage(source: ImageSource.camera);
+    if (imagenSeleccionada != null) {
+      actualizarImagen(imagenSeleccionada);
+    }
+  }
+
+  // Función para abrir la galería
+  Future<void> abrirGaleria(void Function(XFile?) actualizarImagen) async {
+    final imagenSeleccionada = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (imagenSeleccionada != null) {
+      actualizarImagen(imagenSeleccionada);
+    }
+  }
+
+  // Función para subir imagen a Supabase
+  Future<String?> subirImagen(XFile? imagen) async {
+    if (imagen == null) return null;
+    
+    try {
+      setState(() {
+        _isUploadingImage = true;
+      });
+      
+      final supabase = Supabase.instance.client;
+      final avatarFile = File(imagen.path);
+      
+      // Generar un nombre único para la imagen
+      final String fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.png';
+      
+      final String fullPath = await supabase.storage.from('usuarios').upload(
+        'public/$fileName',
+        avatarFile,
+        fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+      );
+      
+      // Obtener la URL pública de la imagen
+      final String publicUrl = supabase.storage.from('usuarios').getPublicUrl('public/$fileName');
+      
+      return publicUrl;
+    } catch (e) {
+      print('Error al subir imagen: $e');
+      return null;
+    } finally {
+      setState(() {
+        _isUploadingImage = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -106,52 +172,64 @@ class _RegistroScreenState extends State<RegistroScreen>
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            child: Container(
-              height: MediaQuery.of(context).size.height - 
-                     MediaQuery.of(context).padding.top,
-              child: Column(
-                children: [
-                  // Header con botón de regreso
-                  _buildHeader(context),
-                  
-                  // Contenido principal
-                  Expanded(
-                    child: FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: SlideTransition(
-                        position: _slideAnimation,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Título
-                              _buildTitle(),
-                              
-                              const SizedBox(height: 40),
-                              
-                              // Formulario
-                              _buildForm(),
-                              
-                              const SizedBox(height: 32),
-                              
-                              // Botón de registro
-                              ScaleTransition(
-                                scale: _scaleAnimation,
-                                child: _buildRegisterButton(),
-                              ),
-                              
-                              const SizedBox(height: 24),
-                              
-                              // Enlaces adicionales
-                              _buildAdditionalLinks(),
-                            ],
+            physics: const BouncingScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height - 
+                          MediaQuery.of(context).padding.top,
+              ),
+              child: IntrinsicHeight(
+                child: Column(
+                  children: [
+                    // Header con botón de regreso
+                    _buildHeader(context),
+                    
+                    // Contenido principal
+                    Expanded(
+                      child: FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Título
+                                _buildTitle(),
+                                
+                                const SizedBox(height: 24),
+                                
+                                // Sección de foto de perfil
+                                _buildProfileImageSection(),
+                                
+                                const SizedBox(height: 24),
+                                
+                                // Formulario
+                                _buildForm(),
+                                
+                                const SizedBox(height: 24),
+                                
+                                // Botón de registro
+                                ScaleTransition(
+                                  scale: _scaleAnimation,
+                                  child: _buildRegisterButton(),
+                                ),
+                                
+                                const SizedBox(height: 12),
+                                
+                                // Enlaces adicionales
+                                _buildAdditionalLinks(),
+                                
+                                const SizedBox(height: 20),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -202,23 +280,255 @@ class _RegistroScreenState extends State<RegistroScreen>
           child: const Text(
             'Crear Cuenta',
             style: TextStyle(
-              fontSize: 36,
+              fontSize: 32,
               fontWeight: FontWeight.w700,
               color: Colors.white,
               letterSpacing: -0.5,
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           'Únete a la comunidad StreamFlix',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             color: Colors.white.withOpacity(0.7),
             fontWeight: FontWeight.w400,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildProfileImageSection() {
+    return Column(
+      children: [
+        // Avatar circular
+        GestureDetector(
+          onTap: _showImagePickerOptions,
+          child: Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.1),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 2,
+              ),
+            ),
+            child: _imagen == null
+                ? Stack(
+                    children: [
+                      Center(
+                        child: Icon(
+                          Icons.person,
+                          size: 50,
+                          color: Colors.white.withOpacity(0.6),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF007AFF),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.black, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Stack(
+                    children: [
+                      ClipOval(
+                        child: Image.file(
+                          File(_imagen!.path),
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF007AFF),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.black, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.edit,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+        
+        const SizedBox(height: 8),
+        
+        Text(
+          _imagen == null ? 'Agregar foto de perfil' : 'Cambiar foto',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        
+        // Indicador de carga de imagen
+        if (_isUploadingImage) ...[
+          const SizedBox(height: 6),
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF007AFF)),
+              strokeWidth: 2,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _showImagePickerOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1C1C1E),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Indicador superior
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            Text(
+              'Seleccionar foto',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            Row(
+              children: [
+                // Botón Cámara
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      abrirCamara(actualizarImagen);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Cámara',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(width: 16),
+                
+                // Botón Galería
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      abrirGaleria(actualizarImagen);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.image,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Galería',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
     );
   }
 
@@ -450,9 +760,9 @@ class _RegistroScreenState extends State<RegistroScreen>
   Widget _buildRegisterButton() {
     return Container(
       width: double.infinity,
-      height: 56,
+      height: 50,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF007AFF).withOpacity(0.3),
@@ -464,8 +774,8 @@ class _RegistroScreenState extends State<RegistroScreen>
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: _isLoading ? null : _handleRegister,
-          borderRadius: BorderRadius.circular(28),
+          onTap: (_isLoading || _isUploadingImage) ? null : _handleRegister,
+          borderRadius: BorderRadius.circular(25),
           child: Container(
             decoration: BoxDecoration(
               gradient: const LinearGradient(
@@ -476,13 +786,13 @@ class _RegistroScreenState extends State<RegistroScreen>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(25),
             ),
             child: Center(
-              child: _isLoading
+              child: (_isLoading || _isUploadingImage)
                   ? const SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 22,
+                      height: 22,
                       child: CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         strokeWidth: 2,
@@ -491,7 +801,7 @@ class _RegistroScreenState extends State<RegistroScreen>
                   : const Text(
                       'Crear Cuenta',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                         letterSpacing: 0.3,
@@ -557,7 +867,7 @@ class _RegistroScreenState extends State<RegistroScreen>
     );
   }
 
-  // ← AQUÍ ESTÁ LA FUNCIÓN PRINCIPAL CON AUTHENTICATION + DATABASE
+  // Función principal de registro con subida de imagen
   void _handleRegister() async {
     // Validaciones
     if (_nombreController.text.trim().isEmpty) {
@@ -609,17 +919,23 @@ class _RegistroScreenState extends State<RegistroScreen>
     });
 
     try {
-      // 1. Crear usuario en Authentication
+      // 1. Subir imagen a Supabase si existe
+      String? imageUrl;
+      if (_imagen != null) {
+        imageUrl = await subirImagen(_imagen);
+      }
+
+      // 2. Crear usuario en Authentication
       final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _correoController.text.trim(),
         password: _contrasenaController.text,
       );
 
-      // 2. Actualizar el perfil del usuario con el nombre
+      // 3. Actualizar el perfil del usuario con el nombre
       await credential.user?.updateDisplayName(_nombreController.text.trim());
 
-      // 3. Guardar datos adicionales en Realtime Database
-      await _guardarUsuarioEnDatabase(credential.user!.uid);
+      // 4. Guardar datos adicionales en Realtime Database incluyendo la URL de la imagen
+      await _guardarUsuarioEnDatabase(credential.user!.uid, imageUrl);
 
       if (mounted) {
         // Mostrar mensaje de éxito
@@ -680,8 +996,8 @@ class _RegistroScreenState extends State<RegistroScreen>
     }
   }
 
-  // ← FUNCIÓN PARA GUARDAR EN REALTIME DATABASE
-  Future<void> _guardarUsuarioEnDatabase(String userId) async {
+  // Función para guardar en Realtime Database incluyendo la URL de la imagen
+  Future<void> _guardarUsuarioEnDatabase(String userId, String? imageUrl) async {
     DatabaseReference ref = FirebaseDatabase.instance.ref("usuarios/$userId");
     
     await ref.set({
@@ -691,6 +1007,7 @@ class _RegistroScreenState extends State<RegistroScreen>
       "fechaRegistro": DateTime.now().toIso8601String(),
       "peliculasFavoritas": [], // Lista vacía inicial
       "ultimaActividad": DateTime.now().toIso8601String(),
+      "fotoPerfil": imageUrl, // URL de la imagen de perfil
     });
   }
 }

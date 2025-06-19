@@ -1,13 +1,20 @@
 import 'package:appcine/pantallas/panatllalog.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'firebase_options.dart';
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  await Supabase.initialize(
+    url: 'https://czaffqfczhddlmxnbfao.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6YWZmcWZjemhkZGxteG5iZmFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NDQwMzYsImV4cCI6MjA2NTIyMDAzNn0.XafLg4MWf1MhZRQEW8N1DErug4L9c1Bvk6HaV22DsOs',
+  );
+  
   runApp(StreamFlixApp());
 }
 

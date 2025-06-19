@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:video_player/video_player.dart';
 import 'dart:async';
 
 class ReproduccionScreen extends StatefulWidget {
@@ -10,7 +11,8 @@ class ReproduccionScreen extends StatefulWidget {
   final String year;
   final String duration;
   final String rating;
-  final String image; // Cambio 1: usar 'image' del JSON
+  final String image;
+  final String movieUrl; // Añadido movieUrl
   
   const ReproduccionScreen({
     super.key, 
@@ -20,7 +22,8 @@ class ReproduccionScreen extends StatefulWidget {
     required this.year,
     required this.duration,
     required this.rating,
-    required this.image, // Cambio 1: requerido
+    required this.image,
+    required this.movieUrl, // Requerido
   });
 
   @override
@@ -57,8 +60,8 @@ class _ReproduccionScreenState extends State<ReproduccionScreen>
     _controller = YoutubePlayerController(
       initialVideoId: widget.videoId,
       flags: const YoutubePlayerFlags(
-        autoPlay: true, // Cambio: true para que se reproduzca automáticamente
-        mute: false, // Cambio: false para que tenga sonido
+        autoPlay: true,
+        mute: false,
         loop: true,
         hideControls: false,
         forceHD: true,
@@ -153,7 +156,6 @@ class _ReproduccionScreenState extends State<ReproduccionScreen>
     });
     
     _videoFadeController.forward();
-    // No necesitamos _controller.play() porque ya está en autoPlay: true
   }
   
   void _playTrailerManually() {
@@ -164,7 +166,19 @@ class _ReproduccionScreenState extends State<ReproduccionScreen>
     });
     
     _videoFadeController.forward();
-    // No necesitamos _controller.play() porque ya está en autoPlay: true
+  }
+
+  // Función para reproducir la película completa
+  void _playMovie() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MoviePlayerScreen(
+          movieUrl: widget.movieUrl,
+          movieTitle: widget.titulo,
+        ),
+      ),
+    );
   }
 
   @override
@@ -211,7 +225,7 @@ class _ReproduccionScreenState extends State<ReproduccionScreen>
         child: Container(
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: NetworkImage(widget.image), // Cambio 2: usar widget.image directo
+              image: NetworkImage(widget.image),
               fit: BoxFit.cover,
             ),
           ),
@@ -278,8 +292,8 @@ class _ReproduccionScreenState extends State<ReproduccionScreen>
                 
                 const SizedBox(height: 40),
                 
-                // Botones de acción
-                _buildActionButtons(),
+                // Botón de acción
+                _buildActionButton(),
                 
                 const SizedBox(height: 40),
               ],
@@ -407,83 +421,36 @@ class _ReproduccionScreenState extends State<ReproduccionScreen>
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButton() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Row(
-        children: [
-          // Botón Reproducir Película - Cambio 3
-          Expanded(
-            child: Container(
-              height: 50,
-              margin: const EdgeInsets.only(right: 8),
-              child: ElevatedButton(
-                onPressed: () {
-                  // Sin funcionalidad por ahora
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.play_arrow, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Reproducir',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+      child: Container(
+        width: double.infinity,
+        height: 50,
+        child: ElevatedButton(
+          onPressed: _playMovie, // Llama a la función para reproducir la película
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
-          
-          // Botón Compartir
-          Expanded(
-            child: Container(
-              height: 50,
-              margin: const EdgeInsets.only(left: 8),
-              child: ElevatedButton(
-                onPressed: () {
-                  // Compartir película
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black.withOpacity(0.6),
-                  foregroundColor: Colors.white,
-                  side: BorderSide(
-                    color: Colors.white.withOpacity(0.3),
-                    width: 1,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.share, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Compartir',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.play_arrow, size: 24),
+              SizedBox(width: 8),
+              Text(
+                'Reproducir Película',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -513,6 +480,297 @@ class _ReproduccionScreenState extends State<ReproduccionScreen>
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// Nueva pantalla para reproducir la película completa
+class MoviePlayerScreen extends StatefulWidget {
+  final String movieUrl;
+  final String movieTitle;
+  
+  const MoviePlayerScreen({
+    super.key,
+    required this.movieUrl,
+    required this.movieTitle,
+  });
+
+  @override
+  State<MoviePlayerScreen> createState() => _MoviePlayerScreenState();
+}
+
+class _MoviePlayerScreenState extends State<MoviePlayerScreen> {
+  late VideoPlayerController _videoController;
+  bool _isLoading = true;
+  bool _hasError = false;
+  bool _showControls = true;
+  Timer? _hideControlsTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+    _initializeVideo();
+  }
+
+  void _initializeVideo() async {
+    try {
+      _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.movieUrl));
+      await _videoController.initialize();
+      _videoController.setLooping(false);
+      _videoController.play();
+      
+      setState(() {
+        _isLoading = false;
+      });
+      
+      _startHideControlsTimer();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _hasError = true;
+      });
+    }
+  }
+
+  void _startHideControlsTimer() {
+    _hideControlsTimer?.cancel();
+    _hideControlsTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _showControls = false;
+        });
+      }
+    });
+  }
+
+  void _toggleControls() {
+    setState(() {
+      _showControls = !_showControls;
+    });
+    if (_showControls) {
+      _startHideControlsTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    _hideControlsTimer?.cancel();
+    _videoController.dispose();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: GestureDetector(
+        onTap: _toggleControls,
+        child: Stack(
+          children: [
+            // Video Player
+            if (!_isLoading && !_hasError)
+              Center(
+                child: AspectRatio(
+                  aspectRatio: _videoController.value.aspectRatio,
+                  child: VideoPlayer(_videoController),
+                ),
+              ),
+            
+            // Loading
+            if (_isLoading)
+              const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+            
+            // Error
+            if (_hasError)
+              const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error, color: Colors.white, size: 64),
+                    SizedBox(height: 16),
+                    Text(
+                      'Error al cargar el video',
+                      style: TextStyle(color: Colors.white, fontSize: 18),
+                    ),
+                  ],
+                ),
+              ),
+            
+            // Controls
+            if (_showControls && !_isLoading && !_hasError)
+              _buildControls(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControls() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.black.withOpacity(0.7),
+            Colors.transparent,
+            Colors.transparent,
+            Colors.black.withOpacity(0.7),
+          ],
+        ),
+      ),
+      child: Column(
+        children: [
+          // Top controls
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      widget.movieTitle,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const Spacer(),
+          
+          // Bottom controls
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // Progress bar
+                VideoProgressIndicator(
+                  _videoController,
+                  allowScrubbing: true,
+                  colors: const VideoProgressColors(
+                    playedColor: Colors.white,
+                    bufferedColor: Colors.grey,
+                    backgroundColor: Colors.black54,
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Control buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Retroceder 10 segundos
+                    GestureDetector(
+                      onTap: () {
+                        final currentPosition = _videoController.value.position;
+                        final newPosition = currentPosition - const Duration(seconds: 10);
+                        _videoController.seekTo(newPosition.isNegative ? Duration.zero : newPosition);
+                        _startHideControlsTimer();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.replay_10,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 20),
+                    
+                    // Play/Pause button
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _videoController.value.isPlaying
+                              ? _videoController.pause()
+                              : _videoController.play();
+                        });
+                        _startHideControlsTimer();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(50),
+                        ),
+                        child: Icon(
+                          _videoController.value.isPlaying
+                              ? Icons.pause
+                              : Icons.play_arrow,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 20),
+                    
+                    // Adelantar 10 segundos
+                    GestureDetector(
+                      onTap: () {
+                        final currentPosition = _videoController.value.position;
+                        final totalDuration = _videoController.value.duration;
+                        final newPosition = currentPosition + const Duration(seconds: 10);
+                        _videoController.seekTo(newPosition > totalDuration ? totalDuration : newPosition);
+                        _startHideControlsTimer();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.forward_10,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

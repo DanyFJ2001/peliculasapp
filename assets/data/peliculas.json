@@ -7,7 +7,8 @@
     "duration": "2h 23min",
     "rating": "PG-13",
     "videoId": "naQr0uTrH_s",
-    "genre": ["Aventura", "Fantasía", "Acción"]
+    "genre": ["Aventura", "Fantasía", "Acción"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/2nw5pzl06kh99wzfohzzf/Piratas-del-Caribe-_-La-Saga-en-1-Video.mp4?rlkey=qlfc91e7vyzpgblgriugs2har&st=kp9avjjr&raw=1"
   },
   
   {
@@ -18,7 +19,10 @@
     "duration": "1h 53min",
     "rating": "PG-13",
     "videoId": "64-iSYVmMVY",
-    "genre": ["Ciencia Ficción", "Acción", "Suspenso"]
+    "genre": ["Ciencia Ficción", "Acción", "Suspenso"],
+    
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
+
   },
   {
     "name": "Maze Runner: The Scorch Trials",
@@ -27,8 +31,9 @@
     "year": "2015",
     "duration": "2h 11min",
     "rating": "PG-13",
-    "videoId": "-44_igsZtgU",
-    "genre": ["Ciencia Ficción", "Acción", "Suspenso"]
+    "videoId": "SDofO3P2HpE",
+    "genre": ["Ciencia Ficción", "Acción", "Suspenso"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/1zjxzevs6y1obr28eqajl/La-Trilog-a-De-Maze-Runner-_-TeLoResumo.mp4?rlkey=aa3c86e8ii8bhr1gnzdzizw1y&st=pbtose8b&raw=1"
   },
   {
     "name": "Maze Runner: The Death Cure",
@@ -37,8 +42,10 @@
     "year": "2018",
     "duration": "2h 23min",
     "rating": "PG-13",
-    "videoId": "S-fgLyNu5sQ",
-    "genre": ["Ciencia Ficción", "Acción", "Suspenso"]
+    "videoId": "4-BTxXm8KSg",
+    "genre": ["Ciencia Ficción", "Acción", "Suspenso"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/1zjxzevs6y1obr28eqajl/La-Trilog-a-De-Maze-Runner-_-TeLoResumo.mp4?rlkey=aa3c86e8ii8bhr1gnzdzizw1y&st=pbtose8b&raw=1"
+
   },
   {
     "name": "The Super Mario Bros. Movie",
@@ -48,7 +55,8 @@
     "duration": "1h 32min",
     "rating": "PG",
     "videoId": "TnGl01FkMMo",
-    "genre": ["Animación", "Aventura", "Comedia"]
+    "genre": ["Animación", "Aventura", "Comedia"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
   },
   
   {
@@ -59,7 +67,8 @@
     "duration": "2h 20min",
     "rating": "PG-13",
     "videoId": "cSp1dM2Vj48",
-    "genre": ["Ciencia Ficción", "Aventura", "Acción"]
+    "genre": ["Ciencia Ficción", "Aventura", "Acción"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
   },
   {
     "name": "Kingsman: The Secret Service",
@@ -69,7 +78,8 @@
     "duration": "2h 9min",
     "rating": "R",
     "videoId": "m4NCribDx4U",
-    "genre": ["Acción", "Aventura", "Comedia"]
+    "genre": ["Acción", "Aventura", "Comedia"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
   },
   {
     "name": "Avengers: Endgame",
@@ -79,7 +89,9 @@
     "duration": "3h 1min",
     "rating": "PG-13",
     "videoId": "TcMBFSGVi1c",
-    "genre": ["Acción", "Aventura", "Ciencia Ficción"]
+    "genre": ["Acción", "Aventura", "Ciencia Ficción"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
+
   },
   {
     "name": "Spider-Man: No Way Home",
@@ -89,7 +101,8 @@
     "duration": "2h 28min",
     "rating": "PG-13",
     "videoId": "JfVOs4VSpmA",
-    "genre": ["Acción", "Aventura", "Ciencia Ficción"]
+    "genre": ["Acción", "Aventura", "Ciencia Ficción"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
   },
   {
     "name": "Top Gun: Maverick",
@@ -99,7 +112,8 @@
     "duration": "2h 10min",
     "rating": "PG-13",
     "videoId": "qSqVVswa420",
-    "genre": ["Acción", "Drama", "Aventura"]
+    "genre": ["Acción", "Drama", "Aventura"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
   },
   {
     "name": "It",
@@ -109,7 +123,8 @@
     "duration": "2h 15min",
     "rating": "R",
     "videoId": "FnCdOQsX5kc",
-    "genre": ["Terror", "Suspenso", "Drama"]
+    "genre": ["Terror", "Suspenso", "Drama"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
   },
   {
     "name": "The Conjuring",
@@ -119,7 +134,8 @@
     "duration": "1h 52min",
     "rating": "R",
     "videoId": "k10ETZ41q5o",
-    "genre": ["Terror", "Suspenso", "Sobrenatural"]
+    "genre": ["Terror", "Suspenso", "Sobrenatural"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
   },
   {
     "name": "Joker",
@@ -129,7 +145,8 @@
     "duration": "2h 2min",
     "rating": "R",
     "videoId": "zAGVQLHvwOY",
-    "genre": ["Drama", "Suspenso", "Crimen"]
+    "genre": ["Drama", "Suspenso", "Crimen"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
   },
   {
     "name": "Deadpool",
@@ -139,7 +156,8 @@
     "duration": "1h 48min",
     "rating": "R",
     "videoId": "9vN6DHB6bJc",
-    "genre": ["Acción", "Comedia", "Aventura"]
+    "genre": ["Acción", "Comedia", "Aventura"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
   },
   {
     "name": "Inception",
@@ -149,7 +167,10 @@
     "duration": "2h 28min",
     "rating": "PG-13",
     "videoId": "YoHD9XEInc0",
-    "genre": ["Ciencia Ficción", "Acción", "Suspenso"]
+    "genre": ["Ciencia Ficción", "Acción", "Suspenso"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
+
+
   },
   {
     "name": "Mad Max: Fury Road",
@@ -159,7 +180,8 @@
     "duration": "2h",
     "rating": "R",
     "videoId": "hEJnMQG9ev8",
-    "genre": ["Acción", "Aventura", "Ciencia Ficción"]
+    "genre": ["Acción", "Aventura", "Ciencia Ficción"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
   },
  
   {
@@ -170,6 +192,7 @@
     "duration": "1h 57min",
     "rating": "PG",
     "videoId": "tg52up16eq0",
-    "genre": ["Animación", "Acción", "Aventura"]
+    "genre": ["Animación", "Acción", "Aventura"],
+    "movieUrl":"https://www.dropbox.com/scl/fi/in7qva083l3898m1yhk1a/videoplayback.mp4?rlkey=qn53gh5cu95d5srbfvcxqj35i&st=mkjx8ouh&raw=1"
   }
 ]
