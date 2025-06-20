@@ -1,4 +1,15 @@
 [
+  {
+  "name": "Escape Plan",
+  "description": "Ray Breslin, un experto en seguridad de prisiones, es enviado a una prisión de máxima seguridad de la que debe escapar. Con la ayuda de un compañero de celda, planea la fuga más elaborada de su carrera.",
+  "image": "https://i.pinimg.com/736x/1a/bf/c3/1abfc3decce34caefaf6b7442ccb82c6.jpg",
+  "year": "2013",
+  "duration": "1h 55min",
+  "rating": "R",
+  "videoId": "1XtXh8iYPks",
+  "genre": ["Acción", "Thriller", "Crimen"],
+  "movieUrl": "https://www.dropbox.com/scl/fi/fcpv0b8ahd4nzeh4kbhn6/GENIO-IQ333-PUEDE-ESCAPAR-DE-CUALQUIER-CARCEL-USANDO-SU-INTELIGENCIA-PLAN-DE-ESCAPE-EN-10-MINUTOS.mp4?rlkey=egzwhx7rgscc5qjgqmj3vm8nv&st=ikg3s1aw&raw=1"
+},
    {
     "name": "Pirates of the Caribbean: The Curse of the Black Pearl",
     "description": "El capitán Jack Sparrow se une al herrero Will Turner para rescatar a Elizabeth Swann de los piratas malditos del Black Pearl.",

@@ -1,3 +1,4 @@
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,12 +15,13 @@ class FeedScreen extends StatefulWidget {
 }
 
 class _FeedScreenState extends State<FeedScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   
-  PageController _pageController = PageController(
-    viewportFraction: 1.0,
-    keepPage: false,
-  );
+  // OPTIMIZACIÓN: Mantener el estado vivo
+  @override
+  bool get wantKeepAlive => true;
+  
+  late PageController _pageController;
   List<dynamic> _movies = [];
   List<dynamic> _filteredMovies = [];
   List<String> _userFavorites = [];
@@ -27,14 +29,13 @@ class _FeedScreenState extends State<FeedScreen>
   int _currentIndex = 0;
   bool _isLoading = true;
   
-  // Variables para scroll súper sensible
-  double _startY = 0;
-  bool _isScrolling = false;
+  // OPTIMIZACIÓN: Cache de controladores de video
+  final Map<String, YoutubePlayerController> _videoControllers = {};
+  final Set<int> _preloadedVideos = {};
   
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
-  // Firebase
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _database = FirebaseDatabase.instance.ref();
 
@@ -42,11 +43,15 @@ class _FeedScreenState extends State<FeedScreen>
   void initState() {
     super.initState();
     
-    // Pantalla completa inmersiva para experiencia TikTok
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     
+    _pageController = PageController(
+      viewportFraction: 1.0,
+      keepPage: true, // OPTIMIZACIÓN: Mantener páginas
+    );
+    
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 300), // OPTIMIZACIÓN: Más rápido
       vsync: this,
     );
     
@@ -58,9 +63,16 @@ class _FeedScreenState extends State<FeedScreen>
       curve: Curves.easeOut,
     ));
     
-    _loadMovies();
-    _loadUserFavorites();
-    _loadUserProfile(); // Cargar perfil para obtener edad
+    _initializeAsync();
+  }
+
+  // OPTIMIZACIÓN: Inicialización asíncrona optimizada
+  Future<void> _initializeAsync() async {
+    await Future.wait([
+      _loadUserProfile(),
+      _loadUserFavorites(),
+      _loadMovies(),
+    ]);
   }
 
   @override
@@ -68,10 +80,113 @@ class _FeedScreenState extends State<FeedScreen>
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _pageController.dispose();
     _fadeController.dispose();
+    
+    // OPTIMIZACIÓN: Limpiar todos los controladores
+    _disposeAllVideoControllers();
     super.dispose();
   }
 
-  // Cargar perfil del usuario para obtener su edad
+  // OPTIMIZACIÓN: Limpiar controladores de video
+  void _disposeAllVideoControllers() {
+    for (var controller in _videoControllers.values) {
+      try {
+        controller.dispose();
+      } catch (e) {
+        print('Error disposing controller: $e');
+      }
+    }
+    _videoControllers.clear();
+    _preloadedVideos.clear();
+  }
+
+  // OPTIMIZACIÓN: Crear controlador solo cuando sea necesario
+  YoutubePlayerController _getOrCreateController(String videoId, {bool autoPlay = false}) {
+    if (_videoControllers.containsKey(videoId)) {
+      return _videoControllers[videoId]!;
+    }
+    
+    final controller = YoutubePlayerController(
+      initialVideoId: videoId,
+      flags: YoutubePlayerFlags(
+        autoPlay: autoPlay,
+        mute: false,
+        loop: false,
+        hideControls: true,
+        forceHD: false,
+        enableCaption: false,
+        useHybridComposition: false, // OPTIMIZACIÓN: Mejor rendimiento
+      ),
+    );
+    
+    _videoControllers[videoId] = controller;
+    return controller;
+  }
+
+  // OPTIMIZACIÓN: Precargar videos adyacentes
+  void _preloadAdjacentVideos(int currentIndex) {
+    if (_filteredMovies.isEmpty) return;
+    
+    final indicesToPreload = [
+      if (currentIndex > 0) currentIndex - 1,
+      currentIndex,
+      if (currentIndex < _filteredMovies.length - 1) currentIndex + 1,
+    ];
+    
+    for (int index in indicesToPreload) {
+      if (!_preloadedVideos.contains(index) && index < _filteredMovies.length) {
+        final videoId = _filteredMovies[index]['videoId'];
+        _getOrCreateController(videoId, autoPlay: index == currentIndex);
+        _preloadedVideos.add(index);
+      }
+    }
+    
+    // OPTIMIZACIÓN: Limpiar videos lejanos
+    _cleanupDistantVideos(currentIndex);
+  }
+
+  // OPTIMIZACIÓN: Limpiar videos que están lejos
+  void _cleanupDistantVideos(int currentIndex) {
+    final videosToRemove = <String>[];
+    final indicesToRemove = <int>[];
+    
+    for (int index in _preloadedVideos) {
+      if ((index - currentIndex).abs() > 2) { // Mantener solo 2 videos antes y después
+        if (index < _filteredMovies.length) {
+          final videoId = _filteredMovies[index]['videoId'];
+          videosToRemove.add(videoId);
+          indicesToRemove.add(index);
+        }
+      }
+    }
+    
+    for (String videoId in videosToRemove) {
+      _videoControllers[videoId]?.dispose();
+      _videoControllers.remove(videoId);
+    }
+    
+    for (int index in indicesToRemove) {
+      _preloadedVideos.remove(index);
+    }
+  }
+
+  // OPTIMIZACIÓN: Pausar videos que no se están viendo
+  void _pausePreviousVideos(int currentIndex) {
+    for (var entry in _videoControllers.entries) {
+      try {
+        final controller = entry.value;
+        if (controller.value.isPlaying) {
+          // Solo pausar si no es el video actual
+          final currentVideoId = _filteredMovies[currentIndex]['videoId'];
+          if (entry.key != currentVideoId) {
+            controller.pause();
+          }
+        }
+      } catch (e) {
+        print('Error pausando video: $e');
+      }
+    }
+  }
+
   Future<void> _loadUserProfile() async {
     User? user = _auth.currentUser;
     if (user != null) {
@@ -83,73 +198,70 @@ class _FeedScreenState extends State<FeedScreen>
         
         if (event.snapshot.exists) {
           Map<dynamic, dynamic> userData = event.snapshot.value as Map<dynamic, dynamic>;
-          setState(() {
-            _userProfile = {
-              'edad': userData['edad'] ?? 18,
-              'nombre': userData['nombre'] ?? 'Usuario',
-            };
-          });
-          print('Edad del usuario: ${_userProfile['edad']}'); // Debug
-          
-          // Recargar películas con filtro de edad
-          if (_movies.isNotEmpty) {
-            _filterMoviesByAge();
+          if (mounted) {
+            setState(() {
+              _userProfile = {
+                'edad': userData['edad'] ?? 18,
+                'nombre': userData['nombre'] ?? 'Usuario',
+                'fotoPerfil': userData['fotoPerfil'] ?? '',
+              };
+            });
+            
+            if (_movies.isNotEmpty) {
+              _filterMoviesByAge();
+            }
           }
         }
       } catch (e) {
         print('Error cargando perfil: $e');
-        // Usar edad por defecto
+        if (mounted) {
+          setState(() {
+            _userProfile = {'edad': 18, 'nombre': 'Usuario'};
+          });
+        }
+      }
+    } else {
+      if (mounted) {
         setState(() {
           _userProfile = {'edad': 18, 'nombre': 'Usuario'};
         });
       }
-    } else {
-      // Usuario no logueado, usar edad por defecto
-      setState(() {
-        _userProfile = {'edad': 18, 'nombre': 'Usuario'};
-      });
     }
   }
 
-  // Verificar si el usuario puede ver contenido basado en rating y edad
   bool _canWatchContent(String rating) {
     int userAge = _userProfile['edad'] ?? 18;
     
     switch (rating.toUpperCase()) {
       case 'G':
       case 'PG':
-        return true; // Todos pueden ver
+        return true;
       case 'PG-13':
         return userAge >= 13;
       case 'R':
       case 'NC-17':
         return userAge >= 18;
       default:
-        return userAge >= 13; // Por defecto, requiere 13+
+        return userAge >= 13;
     }
   }
 
-  // Determinar género principal de la película
   String _getMainGenre(Map<String, dynamic> movie) {
     String name = movie['name'].toLowerCase();
     String description = movie['description'].toLowerCase();
     
-    // Detectar películas de terror/horror
     if (name.contains('conjuring') || 
-        name.contains('it ') || 
         name.contains('scream') ||
         name.contains('nightmare') ||
         name.contains('friday') ||
         name.contains('halloween') ||
         description.contains('terror') || 
-        description.contains('miedo') ||
         description.contains('horror') ||
         description.contains('scary') ||
         description.contains('haunted')) {
       return 'Terror';
     }
     
-    // Otros géneros...
     if (name.contains('mario') || name.contains('spider-verse') || name.contains('toy story')) {
       return 'Animación';
     } else if (name.contains('deadpool') || description.contains('comedia')) {
@@ -161,7 +273,6 @@ class _FeedScreenState extends State<FeedScreen>
     }
   }
 
-  // Filtrar películas según edad del usuario
   void _filterMoviesByAge() {
     int userAge = _userProfile['edad'] ?? 18;
     
@@ -169,28 +280,18 @@ class _FeedScreenState extends State<FeedScreen>
       String rating = movie['rating'] ?? 'PG-13';
       String genre = _getMainGenre(movie);
       
-      // Si es menor de 18 y es terror, NO mostrar
       if (userAge < 18 && genre == 'Terror') {
-        print('Ocultando película de terror para menor de edad: ${movie['name']}'); // Debug
         return false;
       }
       
-      // Verificar rating
-      bool canWatch = _canWatchContent(rating);
-      
-      if (!canWatch) {
-        print('Ocultando película ${movie['name']} - Rating: $rating, Edad: $userAge'); // Debug
-      }
-      
-      return canWatch;
+      return _canWatchContent(rating);
     }).toList();
     
-    setState(() {
-      _filteredMovies = ageFilteredMovies;
-    });
-    
-    print('Películas totales: ${_movies.length}'); // Debug
-    print('Películas filtradas para edad $userAge: ${_filteredMovies.length}'); // Debug
+    if (mounted) {
+      setState(() {
+        _filteredMovies = ageFilteredMovies;
+      });
+    }
   }
 
   Future<void> _loadUserFavorites() async {
@@ -203,7 +304,7 @@ class _FeedScreenState extends State<FeedScreen>
             .child('peliculasFavoritas')
             .once();
         
-        if (event.snapshot.exists) {
+        if (event.snapshot.exists && mounted) {
           Map<dynamic, dynamic> favoritesMap = event.snapshot.value as Map<dynamic, dynamic>;
           setState(() {
             _userFavorites = favoritesMap.keys.cast<String>().toList();
@@ -237,14 +338,17 @@ class _FeedScreenState extends State<FeedScreen>
           'fechaAgregado': DateTime.now().toIso8601String(),
         });
 
-        setState(() {
-          _userFavorites.add(movieId);
-        });
-
-        _showSnackBar('❤️ ${movie['name']} agregada a biblioteca', Colors.red);
+        if (mounted) {
+          setState(() {
+            _userFavorites.add(movieId);
+          });
+          _showSnackBar('❤️ ${movie['name']} agregada a biblioteca', Colors.red);
+        }
         
       } catch (e) {
-        _showSnackBar('❌ Error al agregar a biblioteca', Colors.red);
+        if (mounted) {
+          _showSnackBar('❌ Error al agregar a biblioteca', Colors.red);
+        }
       }
     }
   }
@@ -262,14 +366,17 @@ class _FeedScreenState extends State<FeedScreen>
             .child(movieId)
             .remove();
 
-        setState(() {
-          _userFavorites.remove(movieId);
-        });
-
-        _showSnackBar('💔 ${movie['name']} removida de biblioteca', Colors.orange);
+        if (mounted) {
+          setState(() {
+            _userFavorites.remove(movieId);
+          });
+          _showSnackBar('💔 ${movie['name']} removida de biblioteca', Colors.orange);
+        }
         
       } catch (e) {
-        _showSnackBar('❌ Error al remover de biblioteca', Colors.red);
+        if (mounted) {
+          _showSnackBar('❌ Error al remover de biblioteca', Colors.red);
+        }
       }
     }
   }
@@ -280,15 +387,47 @@ class _FeedScreenState extends State<FeedScreen>
   }
 
   void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: TextStyle(color: Colors.white)),
-        backgroundColor: color.withOpacity(0.9),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message, style: TextStyle(color: Colors.white)),
+          backgroundColor: color.withOpacity(0.9),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+  }
+
+  // Generar ID de película para Firebase
+  String _generateMovieId(String movieName) {
+    return movieName
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+  }
+
+  // Obtener contador de comentarios
+  Future<int> _getCommentsCount(String movieName) async {
+    try {
+      String movieId = _generateMovieId(movieName);
+      DataSnapshot snapshot = await _database
+          .child('comentarios')
+          .child(movieId)
+          .once()
+          .then((event) => event.snapshot);
+
+      if (snapshot.exists) {
+        Map<dynamic, dynamic> data = snapshot.value as Map<dynamic, dynamic>;
+        return data.length;
+      }
+      return 0;
+    } catch (e) {
+      print('Error obteniendo contador: $e');
+      return 0;
+    }
   }
 
   Future<void> _loadMovies() async {
@@ -297,42 +436,47 @@ class _FeedScreenState extends State<FeedScreen>
           .loadString("assets/data/peliculas.json");
       List movies = json.decode(jsonString);
       
-      setState(() {
-        _movies = movies;
-      });
-      
-      print('Películas cargadas: ${_movies.length}'); // Debug
-      
-      // Si ya tenemos el perfil del usuario, filtrar
-      if (_userProfile.isNotEmpty) {
-        _filterMoviesByAge();
-      } else {
-        // Mostrar todas mientras se carga el perfil
+      if (mounted) {
         setState(() {
-          _filteredMovies = movies;
+          _movies = movies;
+          _filteredMovies = movies; // Inicialmente mostrar todas
         });
+        
+        // Filtrar por edad si ya tenemos el perfil
+        if (_userProfile.isNotEmpty) {
+          _filterMoviesByAge();
+        }
+        
+        setState(() {
+          _isLoading = false;
+        });
+        
+        _fadeController.forward();
+        
+        // OPTIMIZACIÓN: Precargar el primer video
+        if (_filteredMovies.isNotEmpty) {
+          _preloadAdjacentVideos(0);
+        }
       }
-      
-      setState(() {
-        _isLoading = false;
-      });
-      
-      _fadeController.forward();
     } catch (e) {
       print('Error cargando películas: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // REQUERIDO para AutomaticKeepAliveClientMixin
+    
     if (_isLoading) {
       return _buildLoadingScreen();
     }
 
-    if (_filteredMovies.isEmpty) { // Cambio: usar _filteredMovies
+    if (_filteredMovies.isEmpty) {
       return _buildErrorScreen();
     }
 
@@ -342,26 +486,29 @@ class _FeedScreenState extends State<FeedScreen>
         opacity: _fadeAnimation,
         child: Stack(
           children: [
-            // PageView principal - scroll vertical
+            // OPTIMIZACIÓN: PageView con configuración optimizada
             PageView.builder(
               controller: _pageController,
               scrollDirection: Axis.vertical,
               onPageChanged: (index) {
-                print('Cambiando a video $index'); // Debug
-                setState(() {
-                  _currentIndex = index;
-                });
+                if (mounted) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                  
+                  // OPTIMIZACIÓN: Pausar videos anteriores y precargar siguientes
+                  _pausePreviousVideos(index);
+                  _preloadAdjacentVideos(index);
+                }
               },
-              itemCount: _filteredMovies.length, // Cambio: usar _filteredMovies
+              physics: const ClampingScrollPhysics(), // OPTIMIZACIÓN: Mejor scroll
+              itemCount: _filteredMovies.length,
               itemBuilder: (context, index) {
-                return _buildVideoItem(_filteredMovies[index], index); // Cambio: usar _filteredMovies
+                return _buildVideoItem(_filteredMovies[index], index);
               },
             ),
             
-            // Header con información básica
             _buildHeader(),
-            
-            // Botones laterales (como TikTok)
             _buildSideActions(),
           ],
         ),
@@ -428,16 +575,16 @@ class _FeedScreenState extends State<FeedScreen>
     
     return Stack(
       children: [
-        // Video de YouTube a pantalla completa
+        // OPTIMIZACIÓN: Video optimizado
         Positioned.fill(
-          child: TikTokVideoPlayer(
-            key: ValueKey('video_${movie['videoId']}_$index'), // Key única para cada video
+          child: OptimizedVideoPlayer(
+            key: ValueKey('video_${movie['videoId']}_$index'),
             videoId: movie['videoId'],
-            isPlaying: isCurrentVideo, // Solo reproducir si es el video actual
+            isPlaying: isCurrentVideo,
+            controller: _getOrCreateController(movie['videoId'], autoPlay: isCurrentVideo),
           ),
         ),
         
-        // Overlay con gradiente sutil
         Positioned.fill(
           child: Container(
             decoration: BoxDecoration(
@@ -456,9 +603,8 @@ class _FeedScreenState extends State<FeedScreen>
           ),
         ),
         
-        // Información de la película (parte inferior)
         Positioned(
-          bottom: 20,  // Cambio: más abajo
+          bottom: 20,
           left: 16,
           right: 80,
           child: _buildMovieInfo(movie),
@@ -514,17 +660,16 @@ class _FeedScreenState extends State<FeedScreen>
   }
 
   Widget _buildSideActions() {
-    if (_filteredMovies.isEmpty) return Container(); // Protección
+    if (_filteredMovies.isEmpty) return Container();
     
-    final movie = _filteredMovies[_currentIndex]; // Cambio: usar _filteredMovies
+    final movie = _filteredMovies[_currentIndex];
     bool isLiked = _isInFavorites(movie);
     
     return Positioned(
       right: 12,
-      bottom: 40,  // Cambio: más abajo también
+      bottom: 40,
       child: Column(
         children: [
-          // Botón Ver Película Completa (PRINCIPAL)
           _buildActionButton(
             icon: Icons.play_circle_fill,
             label: 'Ver\nCompleta',
@@ -535,7 +680,6 @@ class _FeedScreenState extends State<FeedScreen>
           
           SizedBox(height: 24),
           
-          // Botón Me Gusta / Biblioteca
           _buildActionButton(
             icon: isLiked ? Icons.favorite : Icons.favorite_border,
             label: isLiked ? 'Guardada' : 'Guardar',
@@ -545,12 +689,27 @@ class _FeedScreenState extends State<FeedScreen>
           
           SizedBox(height: 24),
           
-          // Botón Comentarios
-          _buildActionButton(
-            icon: Icons.chat_bubble_outline,
-            label: '1.2K',
-            color: Colors.white,
-            onTap: () => _showComments(movie),
+          // Botón de comentarios con contador real
+          FutureBuilder<int>(
+            future: _getCommentsCount(movie['name']),
+            builder: (context, snapshot) {
+              String label = '0';
+              if (snapshot.hasData) {
+                int count = snapshot.data!;
+                if (count >= 1000) {
+                  label = '${(count / 1000).toStringAsFixed(1)}K';
+                } else {
+                  label = count.toString();
+                }
+              }
+              
+              return _buildActionButton(
+                icon: Icons.chat_bubble_outline,
+                label: label,
+                color: Colors.white,
+                onTap: () => _showComments(movie),
+              );
+            },
           ),
         ],
       ),
@@ -611,7 +770,6 @@ class _FeedScreenState extends State<FeedScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Título de la película
         Text(
           movie['name'],
           style: TextStyle(
@@ -632,7 +790,6 @@ class _FeedScreenState extends State<FeedScreen>
         
         SizedBox(height: 8),
         
-        // Información adicional
         Row(
           children: [
             Container(
@@ -680,7 +837,6 @@ class _FeedScreenState extends State<FeedScreen>
         
         SizedBox(height: 12),
         
-        // Descripción corta
         Text(
           movie['description'],
           style: TextStyle(
@@ -694,8 +850,6 @@ class _FeedScreenState extends State<FeedScreen>
       ],
     );
   }
-
-  // ========== MÉTODOS DE ACCIÓN ==========
 
   void _toggleFavorite(Map<String, dynamic> movie) {
     if (_isInFavorites(movie)) {
@@ -733,213 +887,211 @@ class _FeedScreenState extends State<FeedScreen>
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => CommentsSheet(movie: movie),
+      builder: (context) => SimpleCommentsSheet(movie: movie),
     );
   }
 }
 
-// ========== REPRODUCTOR DE VIDEO PERSONALIZADO ==========
+// ========== REPRODUCTOR DE VIDEO OPTIMIZADO ==========
 
-class TikTokVideoPlayer extends StatefulWidget {
+class OptimizedVideoPlayer extends StatefulWidget {
   final String videoId;
   final bool isPlaying;
+  final YoutubePlayerController controller;
 
-  const TikTokVideoPlayer({
+  const OptimizedVideoPlayer({
     super.key,
     required this.videoId,
     required this.isPlaying,
+    required this.controller,
   });
 
   @override
-  State<TikTokVideoPlayer> createState() => _TikTokVideoPlayerState();
+  State<OptimizedVideoPlayer> createState() => _OptimizedVideoPlayerState();
 }
 
-class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
-  YoutubePlayerController? _controller;
-  bool _isInitialized = false;
+class _OptimizedVideoPlayerState extends State<OptimizedVideoPlayer>
+    with AutomaticKeepAliveClientMixin {
+  
+  @override
+  bool get wantKeepAlive => true;
 
   @override
-  void initState() {
-    super.initState();
-    print('Inicializando video: ${widget.videoId}'); // Debug
-    _initializeController();
-  }
-
-  void _initializeController() {
-    _controller?.dispose(); // Asegurar que se destruya el anterior
-    
-    _controller = YoutubePlayerController(
-      initialVideoId: widget.videoId,
-      flags: YoutubePlayerFlags(
-        autoPlay: widget.isPlaying,
-        mute: false,
-        loop: false,
-        hideControls: true,
-        forceHD: false, // Cambio: menos exigente
-        enableCaption: false,
-        startAt: 0,
-      ),
-    );
-    
-    print('Controller creado para: ${widget.videoId}, autoPlay: ${widget.isPlaying}'); // Debug
-  }
-
-  @override
-  void didUpdateWidget(TikTokVideoPlayer oldWidget) {
+  void didUpdateWidget(OptimizedVideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     
-    print('didUpdateWidget - Old: ${oldWidget.videoId}, New: ${widget.videoId}'); // Debug
-    print('didUpdateWidget - Old playing: ${oldWidget.isPlaying}, New playing: ${widget.isPlaying}'); // Debug
-    
-    // Si cambió el videoId, recrear controller
-    if (widget.videoId != oldWidget.videoId) {
-      print('Recreando controller para nuevo video: ${widget.videoId}'); // Debug
-      _initializeController();
-      return; // Salir porque ya se maneja el autoplay en la inicialización
-    }
-    
-    // Si solo cambió el estado de reproducción
+    // OPTIMIZACIÓN: Solo cambiar estado de reproducción
     if (widget.isPlaying != oldWidget.isPlaying) {
-      print('Cambiando estado de reproducción a: ${widget.isPlaying}'); // Debug
       if (widget.isPlaying) {
-        _controller?.play();
-        print('Reproduciendo video: ${widget.videoId}'); // Debug
+        widget.controller.play();
       } else {
-        _controller?.pause();
-        print('Pausando video: ${widget.videoId}'); // Debug
+        widget.controller.pause();
       }
     }
   }
 
   @override
-  void dispose() {
-    print('Disposing controller para: ${widget.videoId}'); // Debug
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_controller == null) {
-      return Container(
-        color: Colors.black,
-        child: Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        ),
-      );
-    }
-
+    super.build(context);
+    
     return YoutubePlayer(
-      controller: _controller!,
+      controller: widget.controller,
       showVideoProgressIndicator: false,
       progressIndicatorColor: Colors.transparent,
       aspectRatio: MediaQuery.of(context).size.width / MediaQuery.of(context).size.height,
       bottomActions: [],
       topActions: [],
       onReady: () {
-        print('Video listo: ${widget.videoId}'); // Debug
         if (widget.isPlaying) {
-          _controller?.play();
+          widget.controller.play();
         }
       },
     );
   }
 }
 
-// ========== COMENTARIOS FUNCIONALES ==========
+// ========== COMENTARIOS SIMPLES ==========
 
-class CommentsSheet extends StatefulWidget {
+class SimpleCommentsSheet extends StatefulWidget {
   final Map<String, dynamic> movie;
 
-  const CommentsSheet({super.key, required this.movie});
+  const SimpleCommentsSheet({super.key, required this.movie});
 
   @override
-  State<CommentsSheet> createState() => _CommentsSheetState();
+  State<SimpleCommentsSheet> createState() => _SimpleCommentsSheetState();
 }
 
-class _CommentsSheetState extends State<CommentsSheet> {
+class _SimpleCommentsSheetState extends State<SimpleCommentsSheet> {
   final TextEditingController _commentController = TextEditingController();
-  final List<Map<String, dynamic>> _comments = [];
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _database = FirebaseDatabase.instance.ref();
+  
+  Stream<List<Map<String, dynamic>>>? _commentsStream;
+  Map<String, dynamic> _userProfile = {};
 
   @override
   void initState() {
     super.initState();
-    _loadComments();
-    // Agregar comentarios de ejemplo
-    _addExampleComments();
+    _loadUserProfile();
+    _initializeCommentsStream();
   }
 
-  void _addExampleComments() {
-    _comments.addAll([
-      {
-        'user': 'Carlos_M',
-        'comment': '¡Increíble trailer! 🔥 Ya quiero verla completa',
-        'time': '2h',
-        'likes': 45,
-      },
-      {
-        'user': 'Ana_Cinema',
-        'comment': 'Los efectos especiales se ven espectaculares 😍',
-        'time': '1h',
-        'likes': 23,
-      },
-      {
-        'user': 'MovieFan2024',
-        'comment': 'Definitivamente va a mi lista de pendientes',
-        'time': '45min',
-        'likes': 12,
-      },
-      {
-        'user': 'Sofia_R',
-        'comment': 'El protagonista actúa increíble! 👏',
-        'time': '30min',
-        'likes': 8,
-      },
-    ]);
+  void _initializeCommentsStream() {
+    String movieId = _generateMovieId(widget.movie['name']);
+    _commentsStream = _database
+        .child('comentarios')
+        .child(movieId)
+        .orderByChild('timestamp')
+        .onValue
+        .map((event) {
+      List<Map<String, dynamic>> comments = [];
+      
+      if (event.snapshot.exists) {
+        Map<dynamic, dynamic> data = event.snapshot.value as Map<dynamic, dynamic>;
+        
+        data.forEach((key, value) {
+          Map<String, dynamic> comment = Map<String, dynamic>.from(value);
+          comment['id'] = key;
+          comments.add(comment);
+        });
+        
+        comments.sort((a, b) {
+          int timestampA = a['timestamp'] ?? 0;
+          int timestampB = b['timestamp'] ?? 0;
+          return timestampB.compareTo(timestampA);
+        });
+      }
+      
+      return comments;
+    });
   }
 
-  void _loadComments() async {
-    // Aquí cargarías comentarios reales de Firebase
-    // Por ahora usamos comentarios de ejemplo
+  String _generateMovieId(String movieName) {
+    return movieName
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
   }
 
-  void _addComment() async {
+  Future<void> _loadUserProfile() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      try {
+        DataSnapshot snapshot = await _database
+            .child('usuarios')
+            .child(user.uid)
+            .once()
+            .then((event) => event.snapshot);
+        
+        if (snapshot.exists) {
+          setState(() {
+            _userProfile = Map<String, dynamic>.from(snapshot.value as Map);
+          });
+        }
+      } catch (e) {
+        print('Error cargando perfil: $e');
+      }
+    }
+  }
+
+  Future<void> _addComment() async {
     if (_commentController.text.trim().isEmpty) return;
 
     User? user = _auth.currentUser;
-    if (user != null) {
-      String userName = user.displayName ?? 'Usuario';
+    if (user == null) return;
+
+    try {
+      String movieId = _generateMovieId(widget.movie['name']);
+      String commentText = _commentController.text.trim();
       
-      setState(() {
-        _comments.insert(0, {
-          'user': userName,
-          'comment': _commentController.text.trim(),
-          'time': 'ahora',
-          'likes': 0,
-        });
+      await _database
+          .child('comentarios')
+          .child(movieId)
+          .push()
+          .set({
+        'userId': user.uid,
+        'userName': _userProfile['nombre'] ?? 'Usuario',
+        'userPhoto': _userProfile['fotoPerfil'] ?? '',
+        'comentario': commentText,
+        'timestamp': ServerValue.timestamp,
       });
 
       _commentController.clear();
+      _showSnackBar('Comentario agregado', Colors.green);
+      
+    } catch (e) {
+      _showSnackBar('Error al agregar comentario', Colors.red);
+      print('Error: $e');
+    }
+  }
 
-      // Aquí guardarías en Firebase
-      try {
-        String movieId = widget.movie['name'].replaceAll(' ', '_').toLowerCase();
-        await _database
-            .child('comentarios')
-            .child(movieId)
-            .push()
-            .set({
-          'userId': user.uid,
-          'userName': userName,
-          'comment': _commentController.text.trim(),
-          'timestamp': DateTime.now().toIso8601String(),
-          'likes': 0,
-        });
-      } catch (e) {
-        print('Error guardando comentario: $e');
-      }
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  String _formatTimestamp(int timestamp) {
+    DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    DateTime now = DateTime.now();
+    Duration difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'Ahora';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}min';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d';
+    } else {
+      return '${dateTime.day}/${dateTime.month}';
     }
   }
 
@@ -966,20 +1118,43 @@ class _CommentsSheetState extends State<CommentsSheet> {
               children: [
                 Icon(Icons.chat_bubble_outline, color: Colors.white, size: 20),
                 SizedBox(width: 8),
-                Text(
-                  'Comentarios',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Comentarios',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        widget.movie['name'],
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                Spacer(),
-                Text(
-                  '${_comments.length}',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 14,
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(
+                      Icons.close,
+                      color: Colors.white.withOpacity(0.7),
+                      size: 20,
+                    ),
                   ),
                 ),
               ],
@@ -988,12 +1163,151 @@ class _CommentsSheetState extends State<CommentsSheet> {
 
           // Lista de comentarios
           Expanded(
-            child: ListView.builder(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              itemCount: _comments.length,
-              itemBuilder: (context, index) {
-                final comment = _comments[index];
-                return _buildCommentItem(comment);
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _commentsStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 60,
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Sé el primero en comentar',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          '¡Comparte tu opinión sobre esta película!',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.5),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final comments = snapshot.data!;
+                return ListView.builder(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  itemCount: comments.length,
+                  itemBuilder: (context, index) {
+                    final comment = comments[index];
+                    return Container(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Avatar del usuario
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [Colors.purple, Colors.blue],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: comment['userPhoto'] != null && comment['userPhoto'].isNotEmpty
+                                ? ClipOval(
+                                    child: Image.network(
+                                      comment['userPhoto'],
+                                      width: 36,
+                                      height: 36,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Center(
+                                          child: Text(
+                                            (comment['userName']?.isNotEmpty == true ? comment['userName'][0] : 'U').toUpperCase(),
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  )
+                                : Center(
+                                    child: Text(
+                                      (comment['userName']?.isNotEmpty == true ? comment['userName'][0] : 'U').toUpperCase(),
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                          
+                          SizedBox(width: 12),
+                          
+                          // Contenido del comentario
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Header del comentario
+                                Row(
+                                  children: [
+                                    Text(
+                                      comment['userName'] ?? 'Usuario',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      _formatTimestamp(comment['timestamp'] ?? 0),
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.5),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                
+                                SizedBox(height: 6),
+                                
+                                // Texto del comentario
+                                Text(
+                                  comment['comentario'] ?? '',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 14,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
               },
             ),
           ),
@@ -1008,18 +1322,61 @@ class _CommentsSheetState extends State<CommentsSheet> {
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Colors.blue,
-                  child: Icon(Icons.person, color: Colors.white, size: 16),
+                // Avatar del usuario actual
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [Colors.blue, Colors.purple],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: _userProfile['fotoPerfil'] != null && _userProfile['fotoPerfil'].isNotEmpty
+                      ? ClipOval(
+                          child: Image.network(
+                            _userProfile['fotoPerfil'],
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Text(
+                                  (_userProfile['nombre']?.isNotEmpty == true ? _userProfile['nombre'][0] : 'U').toUpperCase(),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            (_userProfile['nombre']?.isNotEmpty == true ? _userProfile['nombre'][0] : 'U').toUpperCase(),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
                 ),
+                
                 SizedBox(width: 12),
+                
+                // Campo de texto
                 Expanded(
                   child: TextField(
                     controller: _commentController,
                     style: TextStyle(color: Colors.white),
+                    maxLines: null,
                     decoration: InputDecoration(
-                      hintText: 'Escribe un comentario...',
+                      hintText: 'Escribe tu comentario...',
                       hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
@@ -1033,115 +1390,30 @@ class _CommentsSheetState extends State<CommentsSheet> {
                         borderRadius: BorderRadius.circular(20),
                         borderSide: BorderSide(color: Colors.blue),
                       ),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
                   ),
                 ),
+                
                 SizedBox(width: 8),
+                
+                // Botón enviar
                 GestureDetector(
                   onTap: _addComment,
                   child: Container(
-                    padding: EdgeInsets.all(8),
+                    padding: EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue,
+                      color: _commentController.text.trim().isEmpty 
+                          ? Colors.grey.withOpacity(0.3)
+                          : Colors.blue,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Icon(Icons.send, color: Colors.white, size: 20),
+                    child: Icon(
+                      Icons.send,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCommentItem(Map<String, dynamic> comment) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: Colors.purple,
-            child: Text(
-              comment['user'][0].toUpperCase(),
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      comment['user'],
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      comment['time'],
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 4),
-                Text(
-                  comment['comment'],
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 14,
-                    height: 1.3,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        // Like comentario
-                        setState(() {
-                          comment['likes'] = (comment['likes'] ?? 0) + 1;
-                        });
-                      },
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.favorite_border,
-                            color: Colors.white.withOpacity(0.7),
-                            size: 16,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            '${comment['likes']}',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: 16),
-                    Text(
-                      'Responder',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
